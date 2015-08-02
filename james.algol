@@ -4,12 +4,14 @@ BEGIN
   INTEGER world;
   INTEGER level;
   INTEGER pos;
+  INTEGER lastPos;
   INTEGER strength;
   INTEGER skill;
   INTEGER carrying;
   INTEGER ARRAY landscape[0:24];
   INTEGER ARRAY object[0:24];
   INTEGER ARRAY monster[0:24];
+  INTEGER ARRAY monStrength[0:24];
   INTEGER randvar;
   BOOLEAN north, south, west, east;
   
@@ -22,6 +24,37 @@ BEGIN
     random := randvar - (randvar DIV range) * range;
   END random;
   
+  BOOLEAN PROCEDURE decide(below);
+  VALUE below; INTEGER below;
+  BEGIN
+    INTEGER i, num, j;
+    
+    num := random(50) + 20;
+    FOR i := 0 STEP 1 UNTIL num DO j := random(100);
+    decide := random(100) LESS below;
+  END decide;
+  
+  PROCEDURE name(seed);
+  VALUE seed; INTEGER seed;
+  BEGIN
+    INTEGER len, temp, i, j;
+    
+    temp := randvar;
+    randvar := seed;
+    len := random(2) + 1;
+    FOR i := 1 STEP 1 UNTIL len DO BEGIN
+      j := random(8);
+      IF j = 1 THEN PRINT #ro?;
+      IF j = 2 THEN PRINT #nee?;
+      IF j = 3 THEN PRINT #dor?;
+      IF j = 4 THEN PRINT #na?;
+      IF j = 5 THEN PRINT #se?;
+      IF j = 6 THEN PRINT #fo?;
+      IF j = 7 THEN PRINT #nir?;      
+    END for;
+    randvar := temp;
+  END name;
+  
   PROCEDURE prepare;
   BEGIN
     INTEGER x, y, p;
@@ -31,9 +64,12 @@ BEGIN
         landscape[p] := random(4) + 1;
         object[p] := random(4);
         monster[p] := random(4);
+        monStrength[p] := random(level * 10 + 10);
       END;      
     END;
     pos := 3 + 2 * 5;
+    lastPos := pos;
+    monster[pos] := 0;
   END prepare;
     
   PROCEDURE printObj(num);
@@ -66,11 +102,46 @@ BEGIN
     PRINT #?;
   END printMon;
   
+  COMMENT Monster attacks you;
+  PROCEDURE monAttack;
+  BEGIN
+    INTEGER damage;
+    SWITCH ss := finished;
+    
+    IF monster[pos] = 0 THEN GOTO finished;
+    printMon(monster[pos]);
+    PRINT # attacks you ?;
+    damage := random(monStrength[pos]) DIV 2;
+    IF damage LESSEQ monStrength[pos] DIV 6 THEN
+      PRINT #causing no damage. ?
+    ELSE BEGIN
+      PRINT #causing ?, damage, # damage. ?;
+      strength := strength - damage; 
+    END damage;
+    
+    COMMENT Random occurrences;
+    damage := random(10);
+    IF damage = 1 AND carrying NOTEQ 0 AND object[pos] = 0 THEN BEGIN
+      PRINT #You drop ?; printObj(carrying); PRINT #. ?;
+      object[pos] := carrying;
+      carrying := 0;
+      GOTO finished;
+    END damage1;
+    
+    IF damage = 1 AND carrying NOTEQ 0 THEN BEGIN
+      PRINT #The ?; printObj(carrying); PRINT # breaks. ?;
+      carrying := 0;
+      GOTO finished;
+    END damage1;
+    
+  finished:
+  END monAttack;
+  
   PROCEDURE status;
   BEGIN
     BOOLEAN found;
     found := false;
-    PRINT #Level ?,special(1),level,sameline,# explorer in world ?,world, #.#L??;
+    PRINT #Level ?,special(1),level,sameline,# explorer on world ?; name(world); PRINT #.#L??;
     PRINT #Your strength is ?,strength, #, and your skill is ?,skill,#. ?;
     PRINT #You are carrying ?,printObj(carrying),#.#L2??;    
   END status;
@@ -89,20 +160,30 @@ BEGIN
 
   PROCEDURE options;
   BEGIN
+    SWITCH ss := finished;
+    
+    PRINT ##L?What next#u? ?;  
     north := pos GR 4;
     south := pos LESS 20;
     west := pos - (pos DIV 5) * 5 GR 0;
     east := pos - (pos DIV 5) * 5 LESS 4;
+    
+    COMMENT If there is a monster only give a flee option and dont even give that if this is the first move;
+    IF monster[pos] NOTEQ 0 THEN BEGIN
+      IF lastPos NOTEQ pos THEN PRINT #1 Flee, ?;
+      IF object[pos] NOTEQ 0 THEN PRINT #16 Steal, ?;
+      PRINT #32 Attack, ?;    
+      GOTO finished;
+    END monster;
+    
+    COMMENT No monster;
     IF north THEN PRINT #1 North, ?;
     IF south THEN PRINT #2 South, ?;
     IF west THEN PRINT #4 West, ?;
     IF east THEN PRINT #8 East, ?;
+    IF object[pos] NOTEQ 0 THEN PRINT #16 Take, ?;
     
-    IF object[pos] NOTEQ 0 THEN BEGIN 
-      IF monster[pos] NOTEQ 0 THEN PRINT #16 Steal, ? ELSE PRINT #16 Take, ?;
-    END object;
-    
-    IF monster[pos] NOTEQ 0 THEN PRINT #32 Attack, ?;
+  finished:
     PRINT #64 Status, 128 Quit#L??;
   END options;
   
@@ -112,7 +193,7 @@ BEGIN
     SWITCH ss := loop, loop2;
     
     IF getin NOTEQ 0 THEN BEGIN
-      PRINT #Hit A2 reset#L??;
+      PRINT ##L?Hit A2 reset#L??;
   loop:
       IF getin NOTEQ 0 THEN GOTO loop;
     END getin;
@@ -159,28 +240,57 @@ BEGIN
     PRINT #. ?;
     IF (object[pos] + monster[pos] NOTEQ 0) THEN BEGIN 
       PRINT #There is ?;
-      IF (monster[pos] NOTEQ 0) THEN printMon(monster[pos]);
+      IF (monster[pos] NOTEQ 0) THEN BEGIN 
+        printMon(monster[pos]);
+        PRINT # ?,monStrength[pos];
+      END monster;
       IF (object[pos] NOTEQ 0) THEN BEGIN
         IF (monster[pos] NOTEQ 0) THEN PRINT # guarding ?;
         printObj(object[pos]);
       END object;
       PRINT # here. ?;
-    END;
-    PRINT #What next#uL??;    
+    END;  
   END look;
   
   INTEGER PROCEDURE game(cmd);
   VALUE cmd; INTEGER cmd;
   BEGIN
     INTEGER result;
-    SWITCH ss := finished;
+    SWITCH ss := finished, doneMon;
     
     result := 0;
-    IF cmd = 1 AND north THEN BEGIN pos := pos - 5; PRINT #You go north. ?; look; GOTO finished; END;
-    IF cmd = 2 AND south THEN BEGIN pos := pos + 5; PRINT #You go south. ?; look; GOTO finished; END;
-    IF cmd = 4 AND west THEN BEGIN pos := pos - 1; PRINT #You go west. ?; look; GOTO finished; END;
-    IF cmd = 8 AND east THEN BEGIN pos := pos + 1; PRINT #You go east. ?; look; GOTO finished; END;
+    IF monster[pos] NOTEQ 0 THEN BEGIN
+      IF cmd = 1 AND lastPos NOTEQ pos THEN BEGIN
+        INTEGER temp;
+        
+        PRINT #You attempt to flee. ?;
+        IF decide(66) THEN PRINT #You are successful. ? ELSE monAttack;
+        temp := pos; pos := lastPos; lastPos := temp;
+        look;
+        GOTO finished;
+      END cmd;
+      
+      IF cmd = 16 THEN BEGIN
+        COMMENT steal;
+        PRINT #You attempt to steal ?; printObj(object[pos]); PRINT #. ?;
+        IF decide(33) THEN take ELSE PRINT #You are unsuccessful. ?;      
+      END cmd;
+      
+      IF cmd = 32 THEN BEGIN
+        COMMENT attack;
+        PRINT #Not implemented. ?;
+      END cmd;
+      GOTO doneMon;
+    END monster;
+  
+    COMMENT No monster;  
+    IF cmd = 1 AND north THEN BEGIN lastPos := pos; pos := pos - 5; PRINT #You go north. ?; look; GOTO finished; END;
+    IF cmd = 2 AND south THEN BEGIN lastPos := pos; pos := pos + 5; PRINT #You go south. ?; look; GOTO finished; END;
+    IF cmd = 4 AND west THEN BEGIN lastPos := pos; pos := pos - 1; PRINT #You go west. ?; look; GOTO finished; END;
+    IF cmd = 8 AND east THEN BEGIN lastPos := pos; pos := pos + 1; PRINT #You go east. ?; look; GOTO finished; END;
     IF cmd = 16 THEN BEGIN take; GOTO finished; END;
+  
+  doneMon:
     IF cmd = 64 THEN BEGIN status; GOTO finished; END;
     IF cmd = 128 THEN result := 1;
     PRINT #CMD ?,cmd;
@@ -195,6 +305,7 @@ BEGIN
   strength := 50;
   world := 0;
   level := 0;
+  lastPos := 0;
 
   BEGIN
     INTEGER choice;
@@ -204,10 +315,11 @@ BEGIN
     carrying := 0;
     PRINT #Teleporting... ?;
     prepare;
-    PRINT #You materialise on world ?,world,#.#L??;
+    PRINT #You materialise on ?; name(world); PRINT #.#L??;
     status;
     look;
   loop:
+    monAttack;
     IF game(command) = 0 THEN GOTO loop;
     PRINT #GAME OVER#L2??;
   END;  
