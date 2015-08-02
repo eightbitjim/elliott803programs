@@ -1,0 +1,203 @@
+Test adventure game;
+
+BEGIN
+  INTEGER world;
+  INTEGER level;
+  INTEGER pos;
+  INTEGER strength;
+  INTEGER skill;
+  INTEGER carrying;
+  INTEGER ARRAY landscape[0:24];
+  INTEGER ARRAY object[0:24];
+  INTEGER ARRAY monster[0:24];
+  INTEGER random;
+  BOOLEAN north, south, west, east;
+  
+  PROCEDURE prepare;
+  BEGIN
+    INTEGER x, y, p;
+    FOR x := 0 STEP 1 UNTIL 4 DO BEGIN
+      FOR y := 0 STEP 1 UNTIL 4 DO BEGIN
+        p := x + y * 5;
+        landscape[p] := 1 + x + y * 5;
+        object[p] := x;
+        monster[p] := 4 - x;
+      END;      
+    END;
+    pos := 3 + 2 * 5;
+  END prepare;
+    
+  PROCEDURE printObj(num);
+  INTEGER num;
+  BEGIN
+    SWITCH ob := nothing,sword,wand,stone;
+    SWITCH ss := done;
+    GOTO ob[num+1];
+  nothing: PRINT #nothing?; GOTO done;
+  sword: PRINT #a sword?; GOTO done;
+  wand: PRINT #a magic wand?; GOTO done;
+  stone: PRINT #a small stone?; GOTO done;
+  done:
+    PRINT #?;
+  END printObj;
+  
+  PROCEDURE printMon(num);
+  INTEGER num;
+  BEGIN
+    SWITCH ob := nothing,spider,troll,goblin,ghost;
+    SWITCH ss := done;
+    GOTO ob[num+1];
+  nothing: PRINT #no monster?; GOTO done;
+  spider: PRINT #a huge spider?; GOTO done;
+  troll: PRINT #a vicious troll?; GOTO done;
+  goblin: PRINT #a nasty goblin?; GOTO done;
+  ghost: PRINT #an angry ghost?; GOTO done;
+  done:
+    PRINT #?;
+  END printMon;
+  
+  PROCEDURE status;
+  BEGIN
+    BOOLEAN found;
+    found := false;
+    PRINT #Level ?,special(1),level,sameline,# explorer in world ?,world, #.#L??;
+    PRINT #Your strength is ?,strength, #, and your skill is ?,skill,#. ?;
+    PRINT #You are carrying ?,printObj(carrying),#.#L2??;    
+  END status;
+  
+  INTEGER PROCEDURE getin;
+  BEGIN
+    INTEGER result;
+    INTEGER mask;
+    
+    result := 0;
+    mask := 511;
+    elliott(7, 0, 0, 0, 0, 3, mask);
+    elliott(2, 0, result, 0, 0, 0, 0);
+    getin := result;    
+  END getin;
+
+  PROCEDURE options;
+  BEGIN
+    north := pos GR 4;
+    south := pos LESS 20;
+    west := pos - (pos DIV 5) * 5 GR 0;
+    east := pos - (pos DIV 5) * 5 LESS 4;
+    IF north THEN PRINT #1 North, ?;
+    IF south THEN PRINT #2 South, ?;
+    IF west THEN PRINT #4 West, ?;
+    IF east THEN PRINT #8 East, ?;
+    
+    IF object[pos] NOTEQ 0 THEN BEGIN 
+      IF monster[pos] NOTEQ 0 THEN PRINT #16 Steal, ? ELSE PRINT #16 Take, ?;
+    END object;
+    
+    IF monster[pos] NOTEQ 0 THEN PRINT #32 Attack, ?;
+    PRINT #64 Status, 128 Quit#L??;
+  END options;
+  
+  INTEGER PROCEDURE command;
+  BEGIN
+    INTEGER result;   
+    SWITCH ss := loop, loop2;
+    
+    IF getin NOTEQ 0 THEN BEGIN
+      PRINT #Hit A2 reset#L??;
+  loop:
+      IF getin NOTEQ 0 THEN GOTO loop;
+    END getin;
+  
+    options;
+    
+  loop2:
+    result := getin;
+    IF result = 0 THEN GOTO loop2;
+    
+    command := result;
+  END command;
+
+  PROCEDURE take;
+  BEGIN
+    INTEGER temp;
+    
+    temp := 0;
+    IF object[pos] NOTEQ 0 THEN BEGIN 
+      temp := object[pos];
+      PRINT #You take ?, printObj(object[pos]), #. ?;
+    END object;
+    
+    object[pos] := carrying;
+    carrying := temp;
+    IF object[pos] NOTEQ 0 THEN PRINT #You drop ?, printObj(object[pos]), #.?;
+  END take;
+    
+  PROCEDURE look;
+  BEGIN
+    INTEGER here;
+    SWITCH scape := trees,clearing,pool,hillside,hut;
+    SWITCH ss := done;
+    
+    here := landscape[pos] - ((landscape[pos] DIV 5) * 5) + 1;
+    PRINT #You are ?;
+    GOTO scape[here];
+  trees: PRINT #in dense forest?; GOTO done;
+  clearing: PRINT #in a clearing in the trees?; GOTO done;
+  pool: PRINT #beside a pool?; GOTO done;
+  hillside: PRINT #on a wooded hillside?; GOTO done;
+  hut: PRINT #beside a woodland hut?; GOTO done;
+  done:
+    PRINT #. ?;
+    IF (object[pos] + monster[pos] NOTEQ 0) THEN BEGIN 
+      PRINT #There is ?;
+      IF (monster[pos] NOTEQ 0) THEN printMon(monster[pos]);
+      IF (object[pos] NOTEQ 0) THEN BEGIN
+        IF (monster[pos] NOTEQ 0) THEN PRINT # guarding ?;
+        printObj(object[pos]);
+      END object;
+      PRINT # here. ?;
+    END;
+    PRINT #What next#uL??;    
+  END look;
+  
+  INTEGER PROCEDURE game(cmd);
+  VALUE cmd; INTEGER cmd;
+  BEGIN
+    INTEGER result;
+    SWITCH ss := finished;
+    
+    result := 0;
+    IF cmd = 1 AND north THEN BEGIN pos := pos - 5; PRINT #You go north. ?; look; GOTO finished; END;
+    IF cmd = 2 AND south THEN BEGIN pos := pos + 5; PRINT #You go south. ?; look; GOTO finished; END;
+    IF cmd = 4 AND west THEN BEGIN pos := pos - 1; PRINT #You go west. ?; look; GOTO finished; END;
+    IF cmd = 8 AND east THEN BEGIN pos := pos + 1; PRINT #You go east. ?; look; GOTO finished; END;
+    IF cmd = 16 THEN BEGIN take; GOTO finished; END;
+    IF cmd = 64 THEN BEGIN status; GOTO finished; END;
+    IF cmd = 128 THEN result := 1;
+    PRINT #CMD ?,cmd;
+  finished:
+    PRINT ##L??;
+    game := result;
+  END game;
+
+  
+  random := 125;
+  skill := 0;
+  strength := 50;
+  world := 0;
+  level := 0;
+
+  BEGIN
+    INTEGER choice;
+    SWITCH ss := loop;
+    punch(3);
+    sameline; special(1); leadzero(#?);
+    carrying := 0;
+    prepare;
+    PRINT #You materialise on world ?,world,#.#L??;
+    status;
+    look;
+  loop:
+    IF game(command) = 0 THEN GOTO loop;
+    PRINT #GAME OVER#L2??;
+  END;  
+END program;
