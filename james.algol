@@ -10,8 +10,17 @@ BEGIN
   INTEGER ARRAY landscape[0:24];
   INTEGER ARRAY object[0:24];
   INTEGER ARRAY monster[0:24];
-  INTEGER random;
+  INTEGER randvar;
   BOOLEAN north, south, west, east;
+  
+  INTEGER PROCEDURE random(range);
+  VALUE range; INTEGER range;
+  BEGIN
+    range := range + 1;
+    randvar := randvar + 19;
+    IF randvar GR 5000 THEN randvar := randvar - 5000;
+    random := randvar - (randvar DIV range) * range;
+  END random;
   
   PROCEDURE prepare;
   BEGIN
@@ -19,9 +28,9 @@ BEGIN
     FOR x := 0 STEP 1 UNTIL 4 DO BEGIN
       FOR y := 0 STEP 1 UNTIL 4 DO BEGIN
         p := x + y * 5;
-        landscape[p] := 1 + x + y * 5;
-        object[p] := x;
-        monster[p] := 4 - x;
+        landscape[p] := random(4) + 1;
+        object[p] := random(4);
+        monster[p] := random(4);
       END;      
     END;
     pos := 3 + 2 * 5;
@@ -30,13 +39,14 @@ BEGIN
   PROCEDURE printObj(num);
   INTEGER num;
   BEGIN
-    SWITCH ob := nothing,sword,wand,stone;
+    SWITCH ob := nothing,sword,wand,stone,gold;
     SWITCH ss := done;
     GOTO ob[num+1];
   nothing: PRINT #nothing?; GOTO done;
   sword: PRINT #a sword?; GOTO done;
   wand: PRINT #a magic wand?; GOTO done;
   stone: PRINT #a small stone?; GOTO done;
+  gold: PRINT #some gold?; GOTO done;
   done:
     PRINT #?;
   END printObj;
@@ -180,7 +190,7 @@ BEGIN
   END game;
 
   
-  random := 125;
+  randvar := 125;
   skill := 0;
   strength := 50;
   world := 0;
@@ -192,6 +202,7 @@ BEGIN
     punch(3);
     sameline; special(1); leadzero(#?);
     carrying := 0;
+    PRINT #Teleporting... ?;
     prepare;
     PRINT #You materialise on world ?,world,#.#L??;
     status;
