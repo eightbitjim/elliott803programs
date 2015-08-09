@@ -8,8 +8,10 @@ BEGIN
   INTEGER strength;
   INTEGER skill;
   INTEGER carrying;
+  INTEGER carryStrength;
   INTEGER ARRAY landscape[0:24];
   INTEGER ARRAY object[0:24];
+  INTEGER ARRAY obStrength[0:24];
   INTEGER ARRAY monster[0:24];
   INTEGER ARRAY monStrength[0:24];
   INTEGER randvar;
@@ -18,10 +20,13 @@ BEGIN
   INTEGER PROCEDURE random(range);
   VALUE range; INTEGER range;
   BEGIN
+    INTEGER r;
     range := range + 1;
     randvar := randvar + 19;
     IF randvar GR 5000 THEN randvar := randvar - 5000;
-    random := randvar - (randvar DIV range) * range;
+    r := randvar - (randvar DIV range) * range;
+  
+    random := r;
   END random;
   
   BOOLEAN PROCEDURE decide(below);
@@ -63,8 +68,9 @@ BEGIN
         p := x + y * 5;
         landscape[p] := random(4) + 1;
         object[p] := random(4);
+        obStrength[p] := random((level + 1) * 10) + 1;
         monster[p] := random(4);
-        monStrength[p] := random(level * 10 + 10);
+        monStrength[p] := random((level + 1) * 10 + 1);
       END;      
     END;
     pos := 3 + 2 * 5;
@@ -72,23 +78,31 @@ BEGIN
     monster[pos] := 0;
   END prepare;
     
-  PROCEDURE printObj(num);
-  INTEGER num;
+  PROCEDURE printObj(num, strn, full);
+  VALUE num, strn, full; INTEGER num, strn; BOOLEAN full;
   BEGIN
     SWITCH ob := nothing,sword,wand,stone,gold;
     SWITCH ss := done;
     GOTO ob[num+1];
   nothing: PRINT #nothing?; GOTO done;
-  sword: PRINT #a sword?; GOTO done;
-  wand: PRINT #a magic wand?; GOTO done;
-  stone: PRINT #a small stone?; GOTO done;
-  gold: PRINT #some gold?; GOTO done;
+  sword: PRINT #a sword?;
+    IF full THEN PRINT # of strength ?, strn;
+    GOTO done;
+  wand: PRINT #a magic wand?; 
+    IF full THEN PRINT # of magic ?, strn;
+    GOTO done;
+  stone: PRINT #a stone?; 
+    IF full THEN PRINT # of weight ?, strn, #kg?;
+    GOTO done;
+  gold: PRINT #some gold?; 
+    IF full THEN PRINT # of value ?, strn, # coins?;
+    GOTO done;
   done:
     PRINT #?;
   END printObj;
   
   PROCEDURE printMon(num);
-  INTEGER num;
+  VALUE num; INTEGER num;
   BEGIN
     SWITCH ob := nothing,spider,troll,goblin,ghost;
     SWITCH ss := done;
@@ -122,14 +136,14 @@ BEGIN
     COMMENT Random occurrences;
     damage := random(10);
     IF damage = 1 AND carrying NOTEQ 0 AND object[pos] = 0 THEN BEGIN
-      PRINT #You drop ?; printObj(carrying); PRINT #. ?;
+      PRINT #You drop ?; printObj(carrying,0,false); PRINT #. ?;
       object[pos] := carrying;
       carrying := 0;
       GOTO finished;
     END damage1;
     
     IF damage = 1 AND carrying NOTEQ 0 THEN BEGIN
-      PRINT #The ?; printObj(carrying); PRINT # breaks. ?;
+      PRINT #The ?; printObj(carrying,0,false); PRINT # breaks. ?;
       carrying := 0;
       GOTO finished;
     END damage1;
@@ -137,13 +151,77 @@ BEGIN
   finished:
   END monAttack;
   
+  PROCEDURE look;
+  BEGIN
+    INTEGER here;
+    SWITCH scape := trees,clearing,pool,hillside,hut;
+    SWITCH ss := done;
+    
+    PRINT #Pos ?,pos,# landscape ?, landscape[pos], # obj ?,object[pos];
+    
+    here := landscape[pos];
+    PRINT #You are ?;
+    GOTO scape[here];
+  trees: PRINT #in dense forest?; GOTO done;
+  clearing: PRINT #in a clearing in the trees?; GOTO done;
+  pool: PRINT #beside a pool?; GOTO done;
+  hillside: PRINT #on a wooded hillside?; GOTO done;
+  hut: PRINT #beside a woodland hut?; GOTO done;
+  done:
+    PRINT #. ?;
+    IF (object[pos] + monster[pos] NOTEQ 0) THEN BEGIN 
+      PRINT #There is ?;
+      IF (monster[pos] NOTEQ 0) THEN BEGIN 
+        printMon(monster[pos]);
+        PRINT # of strength ?,monStrength[pos];
+      END monster;
+      IF (object[pos] NOTEQ 0) THEN BEGIN
+        IF (monster[pos] NOTEQ 0) THEN PRINT # guarding ?;
+        printObj(object[pos],obStrength[pos],true);
+      END object;
+      PRINT # here. ?;
+    END;  
+  END look;
+  
+  COMMENT You attack a monster;
+  PROCEDURE youAttack;
+  BEGIN
+    INTEGER damage;
+    SWITCH ss := finished;
+    
+    IF monster[pos] = 0 THEN GOTO finished;
+    
+    PRINT #You attack ?; printMon(monster[pos]);
+    IF carryStrength NOTEQ 0 THEN BEGIN
+      PRINT # with ?;
+      printObj(carrying,carryStrength,true);
+      PRINT # ?;
+    END;
+    
+    damage := random(strength) DIV 2 + carryStrength;
+    IF damage LESSEQ monStrength[pos] THEN
+      PRINT #causing no damage. ?
+    ELSE BEGIN
+      PRINT #causing ?, damage, # damage. ?;
+      monStrength[pos] := monStrength[pos] - damage; 
+    END damage;
+    
+    IF monStrength[pos] LESS 1 THEN BEGIN
+      PRINT printMon(monster[pos]), # dies. ?;
+      monster[pos] := 0;
+      look;
+    END monStrength;
+        
+  finished:
+  END youAttack;
+  
   PROCEDURE status;
   BEGIN
     BOOLEAN found;
     found := false;
     PRINT #Level ?,special(1),level,sameline,# explorer on world ?; name(world); PRINT #.#L??;
     PRINT #Your strength is ?,strength, #, and your skill is ?,skill,#. ?;
-    PRINT #You are carrying ?,printObj(carrying),#.#L2??;    
+    PRINT #You are carrying ?,printObj(carrying,carryStrength,true),#.#L2??;    
   END status;
   
   INTEGER PROCEDURE getin;
@@ -214,43 +292,13 @@ BEGIN
     temp := 0;
     IF object[pos] NOTEQ 0 THEN BEGIN 
       temp := object[pos];
-      PRINT #You take ?, printObj(object[pos]), #. ?;
+      PRINT #You take ?, printObj(object[pos],0,false), #. ?;
     END object;
     
     object[pos] := carrying;
     carrying := temp;
-    IF object[pos] NOTEQ 0 THEN PRINT #You drop ?, printObj(object[pos]), #.?;
+    IF object[pos] NOTEQ 0 THEN PRINT #You drop ?, printObj(object[pos],0,false), #.?;
   END take;
-    
-  PROCEDURE look;
-  BEGIN
-    INTEGER here;
-    SWITCH scape := trees,clearing,pool,hillside,hut;
-    SWITCH ss := done;
-    
-    here := landscape[pos] - ((landscape[pos] DIV 5) * 5) + 1;
-    PRINT #You are ?;
-    GOTO scape[here];
-  trees: PRINT #in dense forest?; GOTO done;
-  clearing: PRINT #in a clearing in the trees?; GOTO done;
-  pool: PRINT #beside a pool?; GOTO done;
-  hillside: PRINT #on a wooded hillside?; GOTO done;
-  hut: PRINT #beside a woodland hut?; GOTO done;
-  done:
-    PRINT #. ?;
-    IF (object[pos] + monster[pos] NOTEQ 0) THEN BEGIN 
-      PRINT #There is ?;
-      IF (monster[pos] NOTEQ 0) THEN BEGIN 
-        printMon(monster[pos]);
-        PRINT # ?,monStrength[pos];
-      END monster;
-      IF (object[pos] NOTEQ 0) THEN BEGIN
-        IF (monster[pos] NOTEQ 0) THEN PRINT # guarding ?;
-        printObj(object[pos]);
-      END object;
-      PRINT # here. ?;
-    END;  
-  END look;
   
   INTEGER PROCEDURE game(cmd);
   VALUE cmd; INTEGER cmd;
@@ -272,13 +320,13 @@ BEGIN
       
       IF cmd = 16 THEN BEGIN
         COMMENT steal;
-        PRINT #You attempt to steal ?; printObj(object[pos]); PRINT #. ?;
+        PRINT #You attempt to steal ?; printObj(object[pos],0,false); PRINT #. ?;
         IF decide(33) THEN take ELSE PRINT #You are unsuccessful. ?;      
       END cmd;
       
       IF cmd = 32 THEN BEGIN
         COMMENT attack;
-        PRINT #Not implemented. ?;
+        youAttack;
       END cmd;
       GOTO doneMon;
     END monster;
@@ -320,7 +368,10 @@ BEGIN
     look;
   loop:
     monAttack;
-    IF game(command) = 0 THEN GOTO loop;
+    IF strength LESS 1 THEN BEGIN
+      PRINT #Out of strength, you collapse and die.?;
+    END ELSE
+      IF game(command) = 0 THEN GOTO loop;
     PRINT #GAME OVER#L2??;
   END;  
 END program;
