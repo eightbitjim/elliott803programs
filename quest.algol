@@ -1,22 +1,46 @@
-Test adventure game;
+Algorithmically generated adventure game;
 
 BEGIN
+  COMMENT Game state is stored in global variables. Could perhaps move to own variables in a procedure;
+
+  COMMENT Variables that describe the world that the player is in;
+  COMMENT ---------;
+
+  COMMENT World number, used as seed to generate world;
   INTEGER world;
-  INTEGER level;
-  INTEGER pos;
-  INTEGER lastPos;
-  INTEGER strength;
-  INTEGER skill;
-  INTEGER carrying;
-  INTEGER carryStrength;
+
+  COMMENT The world is a 5x5 grid of squares. Each has a landscape type index, the index of any object present (zero if not) and the object strength. Also the index of any monster present (zero if not) and its strength;
   INTEGER ARRAY landscape[0:24];
   INTEGER ARRAY object[0:24];
   INTEGER ARRAY obStrength[0:24];
   INTEGER ARRAY monster[0:24];
   INTEGER ARRAY monStrength[0:24];
-  INTEGER randvar;
+
+  COMMENT The following booleans are set to describe whether the player can exit in this direction from the current location;
   BOOLEAN north, south, west, east;
   
+  COMMENT Variables that describe the player state;
+  COMMENT ---------;
+    
+  COMMENT Level number of the player. As level increases, the monsters get tougher;
+  INTEGER level;
+
+  COMMENT The current and previouslposition of the player in the world grid;
+  COMMENT Previous position used when retreating from a fight;
+  INTEGER pos;
+  INTEGER lastPos;
+
+  COMMENT Strength and skill level of the player 0-100;
+  INTEGER strength;
+  INTEGER skill;
+
+  COMMENT Index of the object that the player is carrying, and its strength;
+  COMMENT Zero indicates carrying nothing;
+  INTEGER carrying;
+  INTEGER carryStrength;
+
+  COMMENT Random number generator. Generates an integer between 0 and range (inclusive). Current seed stored in randvar;
+  INTEGER randvar;  
   INTEGER PROCEDURE random(range);
   VALUE range; INTEGER range;
   BEGIN
@@ -24,26 +48,25 @@ BEGIN
     range := range + 1;
     randvar := randvar + 19;
     IF randvar GR 5000 THEN randvar := randvar - 5000;
-    r := randvar - (randvar DIV range) * range;
-  
+    r := randvar - (randvar DIV range) * range;  
     random := r;
   END random;
   
+  COMMENT Helper procedure for making a TRUE/FALSE decision based on a probability. Probability is expressed as an integer percentage 0 to 100;
   BOOLEAN PROCEDURE decide(below);
   VALUE below; INTEGER below;
   BEGIN
-    INTEGER i, num, j;
-    
+    INTEGER i, num, j;    
     num := random(50) + 20;
     FOR i := 0 STEP 1 UNTIL num DO j := random(100);
     decide := random(100) LESS below;
   END decide;
-  
+
+  COMMENT Prints a pseudo-random name based on the provided seed;  
   PROCEDURE name(seed);
   VALUE seed; INTEGER seed;
   BEGIN
-    INTEGER len, temp, i, j;
-    
+    INTEGER len, temp, i, j;    
     temp := randvar;
     randvar := seed;
     len := random(2) + 1;
@@ -60,6 +83,7 @@ BEGIN
     randvar := temp;
   END name;
   
+  COMMENT Initialises the world with landscape, objects and monsters. The random seed needs to have been initialised in advance with the world number;
   PROCEDURE prepare;
   BEGIN
     INTEGER x, y, p;
@@ -77,7 +101,9 @@ BEGIN
     lastPos := pos;
     monster[pos] := 0;
   END prepare;
-    
+
+  COMMENT Prints the name of an object whose index is num and strength is strn. If full is true prints a long description, otherwise prints a short description with no strength;
+  COMMENT TODO- load object names from tape so they vary between worlds;
   PROCEDURE printObj(num, strn, full);
   VALUE num, strn, full; INTEGER num, strn; BOOLEAN full;
   BEGIN
@@ -100,7 +126,9 @@ BEGIN
   done:
     PRINT #?;
   END printObj;
-  
+
+
+  COMMENT Prints the name of the monster whose index is num;  
   PROCEDURE printMon(num);
   VALUE num; INTEGER num;
   BEGIN
@@ -116,7 +144,7 @@ BEGIN
     PRINT #?;
   END printMon;
   
-  COMMENT Monster attacks you;
+  COMMENT Make the monster in the current location attack the player;
   PROCEDURE monAttack;
   BEGIN
     INTEGER damage;
@@ -151,6 +179,8 @@ BEGIN
   finished:
   END monAttack;
   
+  COMMENT Print the description of the current location;
+  COMMENT TODO- Load descriptions from tape to allow them to vary between worlds;
   PROCEDURE look;
   BEGIN
     INTEGER here;
@@ -183,7 +213,7 @@ BEGIN
     END;  
   END look;
   
-  COMMENT You attack a monster;
+  COMMENT Cause the player to attack the monster in the current location;
   PROCEDURE youAttack;
   BEGIN
     INTEGER damage;
@@ -215,6 +245,7 @@ BEGIN
   finished:
   END youAttack;
   
+  COMMENT Print a status summary for the player;
   PROCEDURE status;
   BEGIN
     BOOLEAN found;
@@ -223,7 +254,8 @@ BEGIN
     PRINT #Your strength is ?,strength, #, and your skill is ?,skill,#. ?;
     PRINT #You are carrying ?,printObj(carrying,carryStrength,true),#.#L2??;    
   END status;
-  
+
+  COMMENT Non-blocking function to get the current input state of the lower 9 bits on the input board;  
   INTEGER PROCEDURE getin;
   BEGIN
     INTEGER result;
@@ -236,6 +268,7 @@ BEGIN
     getin := result;    
   END getin;
 
+  COMMENT Print a context-sensitive list of options to to the player based on the current game state;
   PROCEDURE options;
   BEGIN
     SWITCH ss := finished;
@@ -264,7 +297,8 @@ BEGIN
   finished:
     PRINT #64 Status, 128 Quit#L??;
   END options;
-  
+
+  COMMENT Blocking function to get the next instruction from the player. If the input buttons need reseting it will prompt the player to do this before accepting input;  
   INTEGER PROCEDURE command;
   BEGIN
     INTEGER result;   
@@ -285,6 +319,7 @@ BEGIN
     command := result;
   END command;
 
+  COMMENT Take the object in the current location;
   PROCEDURE take;
   BEGIN
     INTEGER temp;
@@ -299,7 +334,8 @@ BEGIN
     carrying := temp;
     IF object[pos] NOTEQ 0 THEN PRINT #You drop ?, printObj(object[pos],0,false), #.?;
   END take;
-  
+
+  COMMENT Act on the command provided by the user and print the results. Returns zero if the player is still alive after the command completes;  
   INTEGER PROCEDURE game(cmd);
   VALUE cmd; INTEGER cmd;
   BEGIN
@@ -347,7 +383,7 @@ BEGIN
     game := result;
   END game;
 
-  
+  COMMENT Main game loop. First initialise the game state;
   randvar := 125;
   skill := 0;
   strength := 50;
