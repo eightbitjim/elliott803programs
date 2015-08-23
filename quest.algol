@@ -45,13 +45,18 @@ BEGIN
   VALUE range; INTEGER range;
   BEGIN
     INTEGER r;
+    INTEGER mask;  
     range := range + 1;
-    randvar := randvar + 19;
-    IF randvar GR 5000 THEN randvar := randvar - 5000;
+    
+    COMMENT Multiply and add, then mask the bottom 31 bits;
+    randvar := randvar * 214013 + 2531011;
+    mask := 65535; COMMENT 2 to the power 16 minus 1;
+    elliott(3, 0, randvar, 0, 0, 3, mask); COMMENT acc := randvar, acc AND= mask;
+    elliott(2, 0, randvar, 0, 0, 0, 0); COMMENT randvar := acc, nop;
     r := randvar - (randvar DIV range) * range;  
     random := r;
   END random;
-  
+
   COMMENT Helper procedure for making a TRUE/FALSE decision based on a probability. Probability is expressed as an integer percentage 0 to 100;
   BOOLEAN PROCEDURE decide(below);
   VALUE below; INTEGER below;
@@ -187,8 +192,6 @@ BEGIN
     SWITCH scape := trees,clearing,pool,hillside,hut;
     SWITCH ss := done;
     
-    PRINT #Pos ?,pos,# landscape ?, landscape[pos], # obj ?,object[pos];
-    
     here := landscape[pos];
     PRINT #You are ?;
     GOTO scape[here];
@@ -250,7 +253,7 @@ BEGIN
   BEGIN
     BOOLEAN found;
     found := false;
-    PRINT #Level ?,special(1),level,sameline,# explorer on world ?; name(world); PRINT #.#L??;
+    PRINT #Level ?,special(1),level,sameline,# explorer on planet ?; name(world); PRINT #.#L??;
     PRINT #Your strength is ?,strength, #, and your skill is ?,skill,#. ?;
     PRINT #You are carrying ?,printObj(carrying,carryStrength,true),#.#L2??;    
   END status;
@@ -322,16 +325,21 @@ BEGIN
   COMMENT Take the object in the current location;
   PROCEDURE take;
   BEGIN
-    INTEGER temp;
+    INTEGER temp, temp1;
     
     temp := 0;
+    temp1 := 0;
     IF object[pos] NOTEQ 0 THEN BEGIN 
       temp := object[pos];
+      temp1 := obStrength[pos];
       PRINT #You take ?, printObj(object[pos],0,false), #. ?;
     END object;
     
     object[pos] := carrying;
+    obStrength[pos] := carryStrength;
     carrying := temp;
+    carryStrength := temp1;
+        
     IF object[pos] NOTEQ 0 THEN PRINT #You drop ?, printObj(object[pos],0,false), #.?;
   END take;
 
@@ -377,7 +385,6 @@ BEGIN
   doneMon:
     IF cmd = 64 THEN BEGIN status; GOTO finished; END;
     IF cmd = 128 THEN result := 1;
-    PRINT #CMD ?,cmd;
   finished:
     PRINT ##L??;
     game := result;
@@ -396,10 +403,10 @@ BEGIN
     SWITCH ss := loop;
     punch(3);
     sameline; special(1); leadzero(#?);
-    carrying := 0;
+    carrying := 0; carryStrength := 0;
     PRINT #Teleporting... ?;
     prepare;
-    PRINT #You materialise on ?; name(world); PRINT #.#L??;
+    PRINT #You materialise on planet ?; name(world); PRINT #.#L??;
     status;
     look;
   loop:
