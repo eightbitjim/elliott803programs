@@ -1,0 +1,28 @@
+Hello world program to test I have the file format correct;
+BEGIN
+  COMMENT Outputs a copy of this program and game state to a paper tape that can be loaded from initial instructions;
+  COMMENT Once loaded, this procedure will continue executing immediately after the dump instruction;
+  PROCEDURE savegame;
+  BEGIN
+    PRINT #Saving program...?;
+    dump;
+  END savegame;
+  
+  COMMENT Saves a copy of the game if and only if the least significant keyboard digit is pressed;
+  PROCEDURE saveifpressed;
+  BEGIN
+    INTEGER i;
+    SWITCH sw := no;
+    i := 1;
+    elliott(7, 0, 0, 0, 0, 3, i);
+    elliott(4, 2, no, 0, 0, 0, 0);
+    savegame;
+  no:    
+  END saveifpressed;
+  
+  BEGIN 
+    punch(3);
+    saveifpressed;
+    PRINT #Hello world?;
+  END;  
+END program;
