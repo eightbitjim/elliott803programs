@@ -1,5 +1,5 @@
 # elliott803
-Programs for the Elliott 803B computer with 8K of RAM, freely available to anyone with one of these computers. Oh, hang on, there's only one working Elliott 803B left in existence. It's at the National Museum Of Computing at Bletchley Park, UK. Well, if anyone else finds one of these computers, here are some new programs.
+Programs for the Elliott 803B computer with 8K of RAM, freely available to anyone with one of these computers. Oh, hang on, there's only <a href="http://www.tnmoc.org/explore/mainframes">one working Elliott 803B left in existence</a>. It's at the National Museum Of Computing at Bletchley Park, UK. Well, if anyone else finds one of these computers, here are some new programs.
 
 Sources are either in ALGOL-60 or assembler. The tape files are pre-compiled and can be loaded straight in using the "initial instructions", which are a few words of ROM at the start of memory. Run by switching the computer on and entering "40 0" on the control panel.
 
