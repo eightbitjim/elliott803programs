@@ -1,5 +1,20 @@
 Hello world program to test I have the file format correct;
 BEGIN
+  COMMENT Copyeight 2017 James Lean
+ 
+  COMMENT This program is free software: you can redistribute it and/or modify
+  COMMENT it under the terms of the GNU General Public License as published by
+  COMMENT the Free Software Foundation, either version 3 of the License, or
+  COMMENT (at your option) any later version.
+
+  COMMENT This program is distributed in the hope that it will be useful,
+  COMMENT but WITHOUT ANY WARRANTY, without even the implied warranty of
+  COMMENT MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  COMMENT GNU General Public License for more details.
+
+  COMMENT You should have received a copy of the GNU General Public License
+  COMMENT along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
   COMMENT Outputs a copy of this program and game state to a paper tape that can be loaded from initial instructions;
   COMMENT Once loaded, this procedure will continue executing immediately after the dump instruction;
   PROCEDURE savegame;
