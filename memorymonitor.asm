@@ -122,13 +122,18 @@ finished:
      index:  0                     * Index into string
 
      numberstring: '0123456789' * Used for printing out addresses
+
+     * Number digits set to match the start address.
+     * Each needs to be the target digit plus one, because of the
+     * number shift at the start of numberstring
+     * TODO: fix this
      address0: 7
      address1: 10
-     address2: 1
-     address3: 5
+     address2: 9
+     address3: 4
 
-     start:    4095                * The first word to be tested - 1
-     size:     4096                    * Number of words to test
+     start:    3895                * The first word to be tested - 1
+     size:     4296                * Number of words to test
      zero:   0
      one:    1
      two:    2
@@ -139,7 +144,7 @@ finished:
      testword: 60 *1099511627775   * First word to write to memory. 2^40-1
      startlocation: 4095           * The first word of this program, stored at the beginning
      mask:   8191                  * Mask for address
-     linewidth: 50                * mask for bottom 6 bits
+     linewidth: 49                 * line width - 1
      linecounter: 0
      link:   0                     * address to return to
      goodchar: '.'
