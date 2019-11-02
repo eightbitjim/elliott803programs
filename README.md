@@ -21,4 +21,4 @@ Files are as follows:
 
 <b>tapes/*.bootable.tap : </b>A compiled program stored as a tape file suitable for input to an Elliott computer. Only the bottom 5 bits of each byte are used. The program can be loaded from initial instructions (40 0) without the need for the Algol compiler to have been loaded. Once loaded, flip the left-most bit on function 2 on the console to run the program.
 
-<b>tapes/*.address.tap : </b>A copiled program on a tape that doesnt automatically boot. The entry point is the <address>, which is shown in decimal. After loading the tape using instructions 40 0 : 0 0, hit reset and run the program using instructions 40 address : 0 0
+<b>tapes/*.address.tap : </b>A copiled program on a tape that doesnt automatically boot. The entry point is the address, which is shown in decimal. After loading the tape using instructions 40 0 : 0 0, hit reset and run the program using instructions 40 address : 0 0
