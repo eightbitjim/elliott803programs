@@ -1,459 +1,443 @@
-Algorithmically generated adventure game;
+ALGORITHMICALLY GENERATED ADVENTURE GAME'
 
 BEGIN
-  COMMENT Copyeight 2017 James Lean
- 
-  COMMENT This program is free software: you can redistribute it and/or modify
-  COMMENT it under the terms of the GNU General Public License as published by
-  COMMENT the Free Software Foundation, either version 3 of the License, or
-  COMMENT (at your option) any later version.
+  COMMENT GAME STATE IS STORED IN GLOBAL VARIABLES. COULD PERHAPS MOVE TO OWN VARIABLES IN A PROCEDURE'
 
-  COMMENT This program is distributed in the hope that it will be useful,
-  COMMENT but WITHOUT ANY WARRANTY, without even the implied warranty of
-  COMMENT MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  COMMENT GNU General Public License for more details.
+  COMMENT VARIABLES THAT DESCRIBE THE WORLD THAT THE PLAYER IS IN'
+  COMMENT ---------'
 
-  COMMENT You should have received a copy of the GNU General Public License
-  COMMENT along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  COMMENT WORLD NUMBER, USED AS SEED TO GENERATE WORLD'
+  INTEGER WORLD'
 
-  COMMENT Game state is stored in global variables. Could perhaps move to own variables in a procedure;
+  COMMENT THE WORLD IS A 5X5 GRID OF SQUARES. EACH HAS A LANDSCAPE TYPE INDEX, THE INDEX OF ANY OBJECT PRESENT (ZERO IF NOT) AND THE OBJECT STRENGTH. ALSO THE INDEX OF ANY MONSTER PRESENT (ZERO IF NOT) AND ITS STRENGTH'
+  INTEGER ARRAY LANDSCAPE(0:24)'
+  INTEGER ARRAY OBJECT(0:24)'
+  INTEGER ARRAY OBSTRENGTH(0:24)'
+  INTEGER ARRAY MONSTER(0:24)'
+  INTEGER ARRAY MONSTRENGTH(0:24)'
 
-  COMMENT Variables that describe the world that the player is in;
-  COMMENT ---------;
+  COMMENT THE FOLLOWING BOOLEANS ARE SET TO DESCRIBE WHETHER THE PLAYER CAN EXIT IN THIS DIRECTION FROM THE CURRENT LOCATION'
+  BOOLEAN NORTH, SOUTH, WEST, EAST'
 
-  COMMENT World number, used as seed to generate world;
-  INTEGER world;
+  COMMENT VARIABLES THAT DESCRIBE THE PLAYER STATE'
+  COMMENT ---------'
 
-  COMMENT The world is a 5x5 grid of squares. Each has a landscape type index, the index of any object present (zero if not) and the object strength. Also the index of any monster present (zero if not) and its strength;
-  INTEGER ARRAY landscape[0:24];
-  INTEGER ARRAY object[0:24];
-  INTEGER ARRAY obStrength[0:24];
-  INTEGER ARRAY monster[0:24];
-  INTEGER ARRAY monStrength[0:24];
+  COMMENT LEVEL NUMBER OF THE PLAYER. AS LEVEL INCREASES, THE MONSTERS GET TOUGHER'
+  INTEGER LEVEL'
 
-  COMMENT The following booleans are set to describe whether the player can exit in this direction from the current location;
-  BOOLEAN north, south, west, east;
-  
-  COMMENT Variables that describe the player state;
-  COMMENT ---------;
-    
-  COMMENT Level number of the player. As level increases, the monsters get tougher;
-  INTEGER level;
+  COMMENT THE CURRENT AND PREVIOUSLPOSITION OF THE PLAYER IN THE WORLD GRID'
+  COMMENT PREVIOUS POSITION USED WHEN RETREATING FROM A FIGHT'
+  INTEGER POS'
+  INTEGER LASTPOS'
 
-  COMMENT The current and previouslposition of the player in the world grid;
-  COMMENT Previous position used when retreating from a fight;
-  INTEGER pos;
-  INTEGER lastPos;
+  COMMENT STRENGTH AND SKILL LEVEL OF THE PLAYER 0-100'
+  INTEGER STRENGTH'
+  INTEGER SKILL'
 
-  COMMENT Strength and skill level of the player 0-100;
-  INTEGER strength;
-  INTEGER skill;
+  COMMENT INDEX OF THE OBJECT THAT THE PLAYER IS CARRYING, AND ITS STRENGTH'
+  COMMENT ZERO INDICATES CARRYING NOTHING'
+  INTEGER CARRYING'
+  INTEGER CARRYSTRENGTH'
 
-  COMMENT Index of the object that the player is carrying, and its strength;
-  COMMENT Zero indicates carrying nothing;
-  INTEGER carrying;
-  INTEGER carryStrength;
-
-  COMMENT Random number generator. Generates an integer between 0 and range (inclusive). Current seed stored in randvar;
-  INTEGER randvar;  
-  INTEGER PROCEDURE random(range);
-  VALUE range; INTEGER range;
+  COMMENT RANDOM NUMBER GENERATOR. GENERATES AN INTEGER BETWEEN 0 AND RANGE (INCLUSIVE). CURRENT SEED STORED IN RANDVAR'
+  INTEGER RANDVAR'
+  INTEGER PROCEDURE RANDOM(RANGE)'
+  VALUE RANGE' INTEGER RANGE'
   BEGIN
-    INTEGER r;
-    INTEGER mask;  
-    range := range + 1;
-    
-    COMMENT Multiply and add, then mask the bottom 31 bits;
-    randvar := randvar * 214013 + 2531011;
-    mask := 65535; COMMENT 2 to the power 16 minus 1;
-    elliott(3, 0, randvar, 0, 0, 3, mask); COMMENT acc := randvar, acc AND= mask;
-    elliott(2, 0, randvar, 0, 0, 0, 0); COMMENT randvar := acc, nop;
-    r := randvar - (randvar DIV range) * range;  
-    random := r;
-  END random;
+    INTEGER R'
+    INTEGER MASK'
+    RANGE := RANGE + 1'
 
-  COMMENT Helper procedure for making a TRUE/FALSE decision based on a probability. Probability is expressed as an integer percentage 0 to 100;
-  BOOLEAN PROCEDURE decide(below);
-  VALUE below; INTEGER below;
-  BEGIN
-    INTEGER i, num, j;    
-    num := random(50) + 20;
-    FOR i := 0 STEP 1 UNTIL num DO j := random(100);
-    decide := random(100) LESS below;
-  END decide;
+    COMMENT MULTIPLY AND ADD, THEN MASK THE BOTTOM 31 BITS'
+    RANDVAR := RANDVAR * 214013 + 2531011'
+    MASK := 65535' COMMENT 2 TO THE POWER 16 MINUS 1'
+    ELLIOTT(3, 0, RANDVAR, 0, 0, 3, MASK)' COMMENT ACC := RANDVAR, ACC AND= MASK'
+    ELLIOTT(2, 0, RANDVAR, 0, 0, 0, 0)' COMMENT RANDVAR := ACC, NOP'
+    R := RANDVAR - (RANDVAR DIV RANGE) * RANGE'
+    RANDOM := R'
+  END RANDOM'
 
-  COMMENT Outputs a copy of this program and game state to a paper tape that can be loaded from initial instructions;
-  COMMENT Once loaded, this procedure will continue executing immediately after the dump instruction;
-  PROCEDURE savegame;
+  COMMENT HELPER PROCEDURE FOR MAKING A TRUE/FALSE DECISION BASED ON A PROBABILITY. PROBABILITY IS EXPRESSED AS AN INTEGER PERCENTAGE 0 TO 100'
+  BOOLEAN PROCEDURE DECIDE(BELOW)'
+  VALUE BELOW' INTEGER BELOW'
   BEGIN
-    PRINT #Saving game...?;
-    dump;
-  END savegame;
-  
-  COMMENT Saves a copy of the game if and only if the least significant keyboard digit is pressed;
-  PROCEDURE saveifpressed;
-  BEGIN
-    INTEGER i;
-    SWITCH sw := no;
-    i := 1;
-    elliott(7, 0, 0, 0, 0, 3, i);
-    elliott(4, 2, no, 0, 0, 0, 0);
-    savegame;
-  no:    
-  END saveifpressed;
-  
-  COMMENT Prints a pseudo-random name based on the provided seed;  
-  PROCEDURE name(seed);
-  VALUE seed; INTEGER seed;
-  BEGIN
-    INTEGER len, temp, i, j;    
-    temp := randvar;
-    randvar := seed;
-    len := random(2) + 1;
-    FOR i := 1 STEP 1 UNTIL len DO BEGIN
-      j := random(8);
-      IF j = 1 THEN PRINT #ro?;
-      IF j = 2 THEN PRINT #nee?;
-      IF j = 3 THEN PRINT #dor?;
-      IF j = 4 THEN PRINT #na?;
-      IF j = 5 THEN PRINT #se?;
-      IF j = 6 THEN PRINT #fo?;
-      IF j = 7 THEN PRINT #nir?;      
-    END for;
-    randvar := temp;
-  END name;
-  
-  COMMENT Initialises the world with landscape, objects and monsters. The random seed needs to have been initialised in advance with the world number;
-  PROCEDURE prepare;
-  BEGIN
-    INTEGER x, y, p;
-    FOR x := 0 STEP 1 UNTIL 4 DO BEGIN
-      FOR y := 0 STEP 1 UNTIL 4 DO BEGIN
-        p := x + y * 5;
-        landscape[p] := random(4) + 1;
-        object[p] := random(4);
-        obStrength[p] := random((level + 1) * 10) + 1;
-        monster[p] := random(4);
-        monStrength[p] := random((level + 1) * 10 + 1);
-      END;      
-    END;
-    pos := 3 + 2 * 5;
-    lastPos := pos;
-    monster[pos] := 0;
-  END prepare;
+    INTEGER I, NUM, J'
+    NUM := RANDOM(50) + 20'
+    FOR I := 0 STEP 1 UNTIL NUM DO J := RANDOM(100)'
+    DECIDE := RANDOM(100) LESS BELOW'
+  END DECIDE'
 
-  COMMENT Prints the name of an object whose index is num and strength is strn. If full is true prints a long description, otherwise prints a short description with no strength;
-  COMMENT TODO- load object names from tape so they vary between worlds;
-  PROCEDURE printObj(num, strn, full);
-  VALUE num, strn, full; INTEGER num, strn; BOOLEAN full;
+  COMMENT PRINTS A PSEUDO-RANDOM NAME BASED ON THE PROVIDED SEED'
+  PROCEDURE NAME(SEED)'
+  VALUE SEED' INTEGER SEED'
   BEGIN
-    SWITCH ob := nothing,sword,wand,stone,gold;
-    SWITCH ss := done;
-    GOTO ob[num+1];
-  nothing: PRINT #nothing?; GOTO done;
-  sword: PRINT #a sword?;
-    IF full THEN PRINT # of strength ?, strn;
-    GOTO done;
-  wand: PRINT #a magic wand?; 
-    IF full THEN PRINT # of magic ?, strn;
-    GOTO done;
-  stone: PRINT #a stone?; 
-    IF full THEN PRINT # of weight ?, strn, #kg?;
-    GOTO done;
-  gold: PRINT #some gold?; 
-    IF full THEN PRINT # of value ?, strn, # coins?;
-    GOTO done;
-  done:
-    PRINT #?;
-  END printObj;
+    INTEGER LEN, TEMP, I, J'
+    TEMP := RANDVAR'
+    RANDVAR := SEED'
+    LEN := RANDOM(3) + 1'
+    FOR I := 1 STEP 1 UNTIL LEN + 1 DO BEGIN
+      J := RANDOM(8)'
+      IF J = 0 THEN PRINT £ ZERO?'
+      IF J = 1 THEN PRINT £ ALPHA?'
+      IF J = 2 THEN PRINT £ BETA?'
+      IF J = 3 THEN PRINT £ PROXIMA?'
+      IF J = 4 THEN PRINT £ MAXIMA?'
+      IF J = 5 THEN PRINT £ CAECILIUS?'
+      IF J = 6 THEN PRINT £ GAMMA?'
+      IF J = 7 THEN PRINT £ GRUMIO?'
+    END FOR'
+    RANDVAR := TEMP'
+  END NAME'
+
+  COMMENT INITIALISES THE WORLD WITH LANDSCAPE, OBJECTS AND MONSTERS. THE RANDOM SEED NEEDS TO HAVE BEEN INITIALISED IN ADVANCE WITH THE WORLD NUMBER'
+  PROCEDURE PREPARE'
+  BEGIN
+    INTEGER X, Y, P'
+    FOR X := 0 STEP 1 UNTIL 4 DO BEGIN
+      FOR Y := 0 STEP 1 UNTIL 4 DO BEGIN
+        P := X + Y * 5'
+        LANDSCAPE(P) := RANDOM(4) + 1'
+        OBJECT(P) := RANDOM(4)'
+        OBSTRENGTH(P) := RANDOM((LEVEL + 1) * 10) + 1'
+        MONSTER(P) := RANDOM(4)'
+        MONSTRENGTH(P) := RANDOM((LEVEL + 1) * 10 + 1)'
+      END'
+    END'
+    POS := 3 + 2 * 5'
+    LASTPOS := POS'
+    MONSTER(POS) := 0'
+  END PREPARE'
+
+  COMMENT PRINTS THE NAME OF AN OBJECT WHOSE INDEX IS NUM AND STRENGTH IS STRN. IF FULL IS TRUE PRINTS A LONG DESCRIPTION, OTHERWISE PRINTS A SHORT DESCRIPTION WITH NO STRENGTH'
+  COMMENT TODO- LOAD OBJECT NAMES FROM TAPE SO THEY VARY BETWEEN WORLDS'
+  PROCEDURE PRINTOBJ(NUM, STRN, FULL)'
+  VALUE NUM, STRN, FULL' INTEGER NUM, STRN' BOOLEAN FULL'
+  BEGIN
+    SWITCH OB := NOTHING,SWORD,WAND,STONE,GOLD'
+    SWITCH SS := DONE'
+    GOTO OB(NUM+1)'
+  NOTHING: PRINT £NOTHING?' GOTO DONE'
+  SWORD: PRINT £A SWORD?'
+    IF FULL THEN PRINT £ OF STRENGTH ?, STRN'
+    GOTO DONE'
+  WAND: PRINT £A MAGIC WAND?'
+    IF FULL THEN PRINT £ OF MAGIC ?, STRN'
+    GOTO DONE'
+  STONE: PRINT £A STONE?'
+    IF FULL THEN PRINT £ OF WEIGHT ?, STRN, £KG?'
+    GOTO DONE'
+  GOLD: PRINT £SOME GOLD?'
+    IF FULL THEN PRINT £ OF VALUE ?, STRN, £ COINS?'
+    GOTO DONE'
+  DONE:
+    PRINT £?'
+  END PRINTOBJ'
 
 
-  COMMENT Prints the name of the monster whose index is num;  
-  PROCEDURE printMon(num);
-  VALUE num; INTEGER num;
+  COMMENT PRINTS THE NAME OF THE MONSTER WHOSE INDEX IS NUM'
+  PROCEDURE PRINTMON(NUM)'
+  VALUE NUM' INTEGER NUM'
   BEGIN
-    SWITCH ob := nothing,spider,troll,goblin,ghost;
-    SWITCH ss := done;
-    GOTO ob[num+1];
-  nothing: PRINT #no monster?; GOTO done;
-  spider: PRINT #a huge spider?; GOTO done;
-  troll: PRINT #a vicious troll?; GOTO done;
-  goblin: PRINT #a nasty goblin?; GOTO done;
-  ghost: PRINT #an angry ghost?; GOTO done;
-  done:
-    PRINT #?;
-  END printMon;
-  
-  COMMENT Make the monster in the current location attack the player;
-  PROCEDURE monAttack;
+    SWITCH OB := NOTHING,SPIDER,TROLL,GOBLIN,GHOST'
+    SWITCH SS := DONE'
+    GOTO OB(NUM+1)'
+  NOTHING: PRINT £NO MONSTER?' GOTO DONE'
+  SPIDER: PRINT £A HUGE SPIDER?' GOTO DONE'
+  TROLL: PRINT £A VICIOUS TROLL?' GOTO DONE'
+  GOBLIN: PRINT £A NASTY GOBLIN?' GOTO DONE'
+  GHOST: PRINT £AN ANGRY GHOST?' GOTO DONE'
+  DONE:
+    PRINT £?'
+  END PRINTMON'
+
+  COMMENT MAKE THE MONSTER IN THE CURRENT LOCATION ATTACK THE PLAYER'
+  PROCEDURE MONATTACK'
   BEGIN
-    INTEGER damage;
-    SWITCH ss := finished;
-    
-    IF monster[pos] = 0 THEN GOTO finished;
-    printMon(monster[pos]);
-    PRINT # attacks you ?;
-    damage := random(monStrength[pos]) DIV 2;
-    IF damage LESSEQ monStrength[pos] DIV 6 THEN
-      PRINT #causing no damage. ?
+    INTEGER DAMAGE'
+    SWITCH SS := FINISHED'
+
+    IF MONSTER(POS) = 0 THEN GOTO FINISHED'
+    PRINTMON(MONSTER(POS))'
+    PRINT £ ATTACKS YOU ?'
+    DAMAGE := RANDOM(MONSTRENGTH(POS)) DIV 2'
+    IF DAMAGE LESSEQ MONSTRENGTH(POS) DIV 6 THEN
+      PRINT £CAUSING NO DAMAGE. ?
     ELSE BEGIN
-      PRINT #causing ?, damage, # damage. ?;
-      strength := strength - damage; 
-    END damage;
-    
-    COMMENT Random occurrences;
-    damage := random(10);
-    IF damage = 1 AND carrying NOTEQ 0 AND object[pos] = 0 THEN BEGIN
-      PRINT #You drop ?; printObj(carrying,0,false); PRINT #. ?;
-      object[pos] := carrying;
-      carrying := 0;
-      GOTO finished;
-    END damage1;
-    
-    IF damage = 1 AND carrying NOTEQ 0 THEN BEGIN
-      PRINT #The ?; printObj(carrying,0,false); PRINT # breaks. ?;
-      carrying := 0;
-      GOTO finished;
-    END damage1;
-    
-  finished:
-  END monAttack;
-  
-  COMMENT Print the description of the current location;
-  COMMENT TODO- Load descriptions from tape to allow them to vary between worlds;
-  PROCEDURE look;
+      PRINT £CAUSING ?, DAMAGE, £ DAMAGE. ?'
+      STRENGTH := STRENGTH - DAMAGE'
+    END DAMAGE'
+
+    COMMENT RANDOM OCCURRENCES'
+    DAMAGE := RANDOM(10)'
+    IF DAMAGE = 1 AND CARRYING NOTEQ 0 AND OBJECT(POS) = 0 THEN BEGIN
+      PRINT £YOU DROP ?' PRINTOBJ(CARRYING,0,FALSE)' PRINT £. ?'
+      OBJECT(POS) := CARRYING'
+      CARRYING := 0'
+      GOTO FINISHED'
+    END DAMAGE1'
+
+    IF DAMAGE = 1 AND CARRYING NOTEQ 0 THEN BEGIN
+      PRINT £THE ?' PRINTOBJ(CARRYING,0,FALSE)' PRINT £ BREAKS. ?'
+      CARRYING := 0'
+      GOTO FINISHED'
+    END DAMAGE1'
+
+  FINISHED:
+  END MONATTACK'
+
+  COMMENT PRINT THE DESCRIPTION OF THE CURRENT LOCATION'
+  COMMENT TODO- LOAD DESCRIPTIONS FROM TAPE TO ALLOW THEM TO VARY BETWEEN WORLDS'
+  PROCEDURE LOOK'
   BEGIN
-    INTEGER here;
-    SWITCH scape := trees,clearing,pool,hillside,hut;
-    SWITCH ss := done;
-    
-    here := landscape[pos];
-    PRINT #You are ?;
-    GOTO scape[here];
-  trees: PRINT #in dense forest?; GOTO done;
-  clearing: PRINT #in a clearing in the trees?; GOTO done;
-  pool: PRINT #beside a pool?; GOTO done;
-  hillside: PRINT #on a wooded hillside?; GOTO done;
-  hut: PRINT #beside a woodland hut?; GOTO done;
-  done:
-    PRINT #. ?;
-    IF (object[pos] + monster[pos] NOTEQ 0) THEN BEGIN 
-      PRINT #There is ?;
-      IF (monster[pos] NOTEQ 0) THEN BEGIN 
-        printMon(monster[pos]);
-        PRINT # of strength ?,monStrength[pos];
-      END monster;
-      IF (object[pos] NOTEQ 0) THEN BEGIN
-        IF (monster[pos] NOTEQ 0) THEN PRINT # guarding ?;
-        printObj(object[pos],obStrength[pos],true);
-      END object;
-      PRINT # here. ?;
-    END;  
-  END look;
-  
-  COMMENT Cause the player to attack the monster in the current location;
-  PROCEDURE youAttack;
+    INTEGER HERE'
+    SWITCH SCAPE := TREES,CLEARING,POOL,HILLSIDE,HUT'
+    SWITCH SS := DONE'
+
+    HERE := LANDSCAPE(POS)'
+    PRINT £YOU ARE ?'
+    GOTO SCAPE(HERE)'
+  TREES: PRINT £IN DENSE FOREST?' GOTO DONE'
+  CLEARING: PRINT £IN A CLEARING IN THE TREES?' GOTO DONE'
+  POOL: PRINT £BESIDE A POOL?' GOTO DONE'
+  HILLSIDE: PRINT £ON A WOODED HILLSIDE?' GOTO DONE'
+  HUT: PRINT £BESIDE A WOODLAND HUT?' GOTO DONE'
+  DONE:
+    PRINT £. ?'
+    IF (OBJECT(POS) + MONSTER(POS) NOTEQ 0) THEN BEGIN
+      PRINT £THERE IS ?'
+      IF (MONSTER(POS) NOTEQ 0) THEN BEGIN
+        PRINTMON(MONSTER(POS))'
+        PRINT £ OF STRENGTH ?,MONSTRENGTH(POS)'
+      END MONSTER'
+      IF (OBJECT(POS) NOTEQ 0) THEN BEGIN
+        IF (MONSTER(POS) NOTEQ 0) THEN PRINT £ GUARDING ?'
+        PRINTOBJ(OBJECT(POS),OBSTRENGTH(POS),TRUE)'
+      END OBJECT'
+      PRINT £ HERE. ?'
+    END'
+  END LOOK'
+
+  COMMENT CAUSE THE PLAYER TO ATTACK THE MONSTER IN THE CURRENT LOCATION'
+  PROCEDURE YOUATTACK'
   BEGIN
-    INTEGER damage;
-    SWITCH ss := finished;
-    
-    IF monster[pos] = 0 THEN GOTO finished;
-    
-    PRINT #You attack ?; printMon(monster[pos]);
-    IF carryStrength NOTEQ 0 THEN BEGIN
-      PRINT # with ?;
-      printObj(carrying,carryStrength,true);
-      PRINT # ?;
-    END;
-    
-    damage := random(strength) DIV 2 + carryStrength;
-    IF damage LESSEQ monStrength[pos] THEN
-      PRINT #causing no damage. ?
+    INTEGER DAMAGE'
+    SWITCH SS := FINISHED'
+
+    IF MONSTER(POS) = 0 THEN GOTO FINISHED'
+
+    PRINT £YOU ATTACK ?' PRINTMON(MONSTER(POS))'
+    IF CARRYSTRENGTH NOTEQ 0 THEN BEGIN
+      PRINT £ WITH ?'
+      PRINTOBJ(CARRYING,CARRYSTRENGTH,TRUE)'
+      PRINT £ ?'
+    END'
+
+    DAMAGE := RANDOM(STRENGTH) DIV 2 + CARRYSTRENGTH'
+    IF DAMAGE LESSEQ MONSTRENGTH(POS) THEN
+      PRINT £CAUSING NO DAMAGE. ?
     ELSE BEGIN
-      PRINT #causing ?, damage, # damage. ?;
-      monStrength[pos] := monStrength[pos] - damage; 
-    END damage;
-    
-    IF monStrength[pos] LESS 1 THEN BEGIN
-      PRINT printMon(monster[pos]), # dies. ?;
-      monster[pos] := 0;
-      look;
-    END monStrength;
-        
-  finished:
-  END youAttack;
-  
-  COMMENT Print a status summary for the player;
-  PROCEDURE status;
-  BEGIN
-    BOOLEAN found;
-    found := false;
-    PRINT #Level ?,special(1),level,sameline,# explorer on planet ?; name(world); PRINT #.#L??;
-    PRINT #Your strength is ?,strength, #, and your skill is ?,skill,#. ?;
-    PRINT #You are carrying ?,printObj(carrying,carryStrength,true),#.#L2??;    
-  END status;
+      PRINT £CAUSING ?, DAMAGE, £ DAMAGE. ?'
+      MONSTRENGTH(POS) := MONSTRENGTH(POS) - DAMAGE'
+    END DAMAGE'
 
-  COMMENT Non-blocking function to get the current input state of the lower 9 bits on the input board;  
-  INTEGER PROCEDURE getin;
-  BEGIN
-    INTEGER result;
-    INTEGER mask;
-    
-    result := 0;
-    mask := 511;
-    elliott(7, 0, 0, 0, 0, 3, mask);
-    elliott(2, 0, result, 0, 0, 0, 0);
-    getin := result;    
-  END getin;
+    IF MONSTRENGTH(POS) LESS 1 THEN BEGIN
+      PRINT PRINTMON(MONSTER(POS)), £ DIES. ?'
+      MONSTER(POS) := 0'
+      LOOK'
+    END MONSTRENGTH'
 
-  COMMENT Print a context-sensitive list of options to to the player based on the current game state;
-  PROCEDURE options;
-  BEGIN
-    SWITCH ss := finished;
-    
-    PRINT ##L?What next#u? ?;  
-    north := pos GR 4;
-    south := pos LESS 20;
-    west := pos - (pos DIV 5) * 5 GR 0;
-    east := pos - (pos DIV 5) * 5 LESS 4;
-    
-    COMMENT If there is a monster only give a flee option and dont even give that if this is the first move;
-    IF monster[pos] NOTEQ 0 THEN BEGIN
-      IF lastPos NOTEQ pos THEN PRINT #1 Flee, ?;
-      IF object[pos] NOTEQ 0 THEN PRINT #16 Steal, ?;
-      PRINT #32 Attack, ?;    
-      GOTO finished;
-    END monster;
-    
-    COMMENT No monster;
-    IF north THEN PRINT #1 North, ?;
-    IF south THEN PRINT #2 South, ?;
-    IF west THEN PRINT #4 West, ?;
-    IF east THEN PRINT #8 East, ?;
-    IF object[pos] NOTEQ 0 THEN PRINT #16 Take, ?;
-    
-  finished:
-    PRINT #64 Status, 128 Quit#L??;
-  END options;
+  FINISHED:
+  END YOUATTACK'
 
-  COMMENT Blocking function to get the next instruction from the player. If the input buttons need reseting it will prompt the player to do this before accepting input;  
-  INTEGER PROCEDURE command;
+  COMMENT PRINT A STATUS SUMMARY FOR THE PLAYER'
+  PROCEDURE STATUS'
   BEGIN
-    INTEGER result;   
-    SWITCH ss := loop, loop2;
-    
-    IF getin NOTEQ 0 THEN BEGIN
-      PRINT ##L?Hit A2 reset#L??;
-  loop:
-      IF getin NOTEQ 0 THEN GOTO loop;
-    END getin;
-  
-    options;
-    
-  loop2:
-    result := getin;
-    IF result = 0 THEN GOTO loop2;
-    
-    command := result;
-  END command;
+    BOOLEAN FOUND'
+    FOUND := FALSE'
+    PRINT £LEVEL ?,SPECIAL(1),LEVEL,SAMELINE,£ ADVENTURER ON PLANET?' NAME(WORLD)' PRINT £.£L??'
+    PRINT £YOUR STRENGTH IS ?,STRENGTH, £, AND YOUR SKILL IS ?,SKILL,£. ?'
+    PRINT £YOU ARE CARRYING ?,PRINTOBJ(CARRYING,CARRYSTRENGTH,TRUE),£.£L2??'
+  END STATUS'
 
-  COMMENT Take the object in the current location;
-  PROCEDURE take;
+  COMMENT NON-BLOCKING FUNCTION TO GET THE CURRENT INPUT STATE OF THE INPUT BOARD'
+  COMMENT IF THE TOP BIT IS PRESSED, IT INSTEAD GETS A VALUE FROM THE PUNCH'
+  COMMENT TAPE'
+  INTEGER PROCEDURE GETIN'
   BEGIN
-    INTEGER temp, temp1;
-    
-    temp := 0;
-    temp1 := 0;
-    IF object[pos] NOTEQ 0 THEN BEGIN 
-      temp := object[pos];
-      temp1 := obStrength[pos];
-      PRINT #You take ?, printObj(object[pos],0,false), #. ?;
-    END object;
-    
-    object[pos] := carrying;
-    obStrength[pos] := carryStrength;
-    carrying := temp;
-    carryStrength := temp1;
-        
-    IF object[pos] NOTEQ 0 THEN PRINT #You drop ?, printObj(object[pos],0,false), #.?;
-  END take;
+    INTEGER RESULT'
+    INTEGER MASK'
+    INTEGER CHOICE'
 
-  COMMENT Act on the command provided by the user and print the results. Returns zero if the player is still alive after the command completes;  
-  INTEGER PROCEDURE game(cmd);
-  VALUE cmd; INTEGER cmd;
+    RESULT := 0'
+
+    MASK := 1023'
+    ELLIOTT(7, 0, 0, 0, 0, 3, MASK)'
+    ELLIOTT(2, 0, RESULT, 0, 0, 0, 0)'
+
+    IF RESULT = 512 THEN BEGIN
+      COMMENT TOP BUTTON PRESSED, SO USE TAPE READER, I.E. KEYBOARD'
+      ELLIOTT(0, 6, 0, 0, 7, 1, 0)'
+      ELLIOTT(2, 0, CHOICE, 0, 0, 0, 0)'
+
+      COMMENT CONVERT KEYBOARD DIGIT TO EQUIVALENT TO INPUT BOARD'
+      IF CHOICE = 14 OR CHOICE = 6 THEN RESULT := 1'
+      IF CHOICE = 19 THEN RESULT := 2'
+      IF CHOICE = 23 THEN RESULT := 4'
+      IF CHOICE = 5 THEN RESULT := 8'
+
+      IF CHOICE = 20 THEN RESULT := 16'
+      IF CHOICE = 26 THEN RESULT := 64'
+      IF CHOICE = 1 THEN RESULT := 32'
+      IF CHOICE = 17 THEN RESULT := 128'
+    END IF'
+
+    GETIN := RESULT'
+  END GETIN'
+
+  COMMENT PRINT A CONTEXT-SENSITIVE LIST OF OPTIONS TO TO THE PLAYER BASED ON THE CURRENT GAME STATE'
+  PROCEDURE OPTIONS'
   BEGIN
-    INTEGER result;
-    SWITCH ss := finished, doneMon;
-    
-    result := 0;
-    IF monster[pos] NOTEQ 0 THEN BEGIN
-      IF cmd = 1 AND lastPos NOTEQ pos THEN BEGIN
-        INTEGER temp;
-        
-        PRINT #You attempt to flee. ?;
-        IF decide(66) THEN PRINT #You are successful. ? ELSE monAttack;
-        temp := pos; pos := lastPos; lastPos := temp;
-        look;
-        GOTO finished;
-      END cmd;
-      
-      IF cmd = 16 THEN BEGIN
-        COMMENT steal;
-        PRINT #You attempt to steal ?; printObj(object[pos],0,false); PRINT #. ?;
-        IF decide(33) THEN take ELSE PRINT #You are unsuccessful. ?;      
-      END cmd;
-      
-      IF cmd = 32 THEN BEGIN
-        COMMENT attack;
-        youAttack;
-      END cmd;
-      GOTO doneMon;
-    END monster;
-  
-    COMMENT No monster;  
-    IF cmd = 1 AND north THEN BEGIN lastPos := pos; pos := pos - 5; PRINT #You go north. ?; look; GOTO finished; END;
-    IF cmd = 2 AND south THEN BEGIN lastPos := pos; pos := pos + 5; PRINT #You go south. ?; look; GOTO finished; END;
-    IF cmd = 4 AND west THEN BEGIN lastPos := pos; pos := pos - 1; PRINT #You go west. ?; look; GOTO finished; END;
-    IF cmd = 8 AND east THEN BEGIN lastPos := pos; pos := pos + 1; PRINT #You go east. ?; look; GOTO finished; END;
-    IF cmd = 16 THEN BEGIN take; GOTO finished; END;
-  
-  doneMon:
-    IF cmd = 64 THEN BEGIN status; GOTO finished; END;
-    IF cmd = 128 THEN result := 1;
-  finished:
-    PRINT ##L??;
-    game := result;
-  END game;
+    SWITCH SS := FINISHED'
 
-  COMMENT Main game loop. First initialise the game state;
-  randvar := 125;
-  skill := 0;
-  strength := 50;
-  world := 0;
-  level := 0;
-  lastPos := 0;
+    PRINT ££L?WHAT NEXT£U? ?'
+    NORTH := POS GR 4'
+    SOUTH := POS LESS 20'
+    WEST := POS - (POS DIV 5) * 5 GR 0'
+    EAST := POS - (POS DIV 5) * 5 LESS 4'
+
+    COMMENT IF THERE IS A MONSTER ONLY GIVE A FLEE OPTION AND DONT EVEN GIVE THAT IF THIS IS THE FIRST MOVE'
+    IF MONSTER(POS) NOTEQ 0 THEN BEGIN
+      IF LASTPOS NOTEQ POS THEN PRINT £1 (F)LEE, ?'
+      IF OBJECT(POS) NOTEQ 0 THEN PRINT £16 S(T)EAL, ?'
+      PRINT £32 (A)TTACK, ?'
+      GOTO FINISHED'
+    END MONSTER'
+
+    COMMENT NO MONSTER'
+    IF NORTH THEN PRINT £1 (N)ORTH, ?'
+    IF SOUTH THEN PRINT £2 (S)OUTH, ?'
+    IF WEST THEN PRINT £4 (W)EST, ?'
+    IF EAST THEN PRINT £8 (E)AST, ?'
+    IF OBJECT(POS) NOTEQ 0 THEN PRINT £16 (T)AKE, ?'
+
+  FINISHED:
+    PRINT £64 (Z)STATUS, 128 (Q)UIT£L??'
+  END OPTIONS'
+
+  COMMENT BLOCKING FUNCTION TO GET THE NEXT INSTRUCTION FROM THE PLAYER. IF THE INPUT BUTTONS NEED RESETING IT WILL PROMPT THE PLAYER TO DO THIS BEFORE ACCEPTING INPUT'
+  INTEGER PROCEDURE COMMAND'
+  BEGIN
+    INTEGER RESULT'
+
+    SWITCH SS := LOOP'
+    OPTIONS'
+
+    RESULT:= 0'
+
+  LOOP:
+    RESULT := GETIN'
+    IF RESULT = 0 THEN GOTO LOOP'
+
+    COMMAND := RESULT'
+  END COMMAND'
+
+  COMMENT TAKE THE OBJECT IN THE CURRENT LOCATION'
+  PROCEDURE TAKE'
+  BEGIN
+    INTEGER TEMP, TEMP1'
+
+    TEMP := 0'
+    TEMP1 := 0'
+    IF OBJECT(POS) NOTEQ 0 THEN BEGIN
+      TEMP := OBJECT(POS)'
+      TEMP1 := OBSTRENGTH(POS)'
+      PRINT £YOU TAKE ?, PRINTOBJ(OBJECT(POS),0,FALSE), £. ?'
+    END OBJECT'
+
+    OBJECT(POS) := CARRYING'
+    OBSTRENGTH(POS) := CARRYSTRENGTH'
+    CARRYING := TEMP'
+    CARRYSTRENGTH := TEMP1'
+
+    IF OBJECT(POS) NOTEQ 0 THEN PRINT £YOU DROP ?, PRINTOBJ(OBJECT(POS),0,FALSE), £.?'
+  END TAKE'
+
+  COMMENT ACT ON THE COMMAND PROVIDED BY THE USER AND PRINT THE RESULTS. RETURNS ZERO IF THE PLAYER IS STILL ALIVE AFTER THE COMMAND COMPLETES'
+  INTEGER PROCEDURE GAME(CMD)'
+  VALUE CMD' INTEGER CMD'
+  BEGIN
+    INTEGER RESULT'
+    SWITCH SS := FINISHED, DONEMON'
+
+    RESULT := 0'
+    IF MONSTER(POS) NOTEQ 0 THEN BEGIN
+      IF CMD = 1 AND LASTPOS NOTEQ POS THEN BEGIN
+        INTEGER TEMP'
+
+        PRINT £YOU ATTEMPT TO FLEE. ?'
+        IF DECIDE(66) THEN PRINT £YOU ARE SUCCESSFUL. ? ELSE MONATTACK'
+        TEMP := POS' POS := LASTPOS' LASTPOS := TEMP'
+        LOOK'
+        GOTO FINISHED'
+      END CMD'
+
+      IF CMD = 16 THEN BEGIN
+        COMMENT STEAL'
+        PRINT £YOU ATTEMPT TO STEAL ?' PRINTOBJ(OBJECT(POS),0,FALSE)' PRINT £. ?'
+        IF DECIDE(33) THEN TAKE ELSE PRINT £YOU ARE UNSUCCESSFUL. ?'
+      END CMD'
+
+      IF CMD = 32 THEN BEGIN
+        COMMENT ATTACK'
+        YOUATTACK'
+      END CMD'
+      GOTO DONEMON'
+    END MONSTER'
+
+    COMMENT NO MONSTER'
+    IF CMD = 1 AND NORTH THEN BEGIN LASTPOS := POS' POS := POS - 5' PRINT £YOU GO NORTH. ?' LOOK' GOTO FINISHED' END'
+    IF CMD = 2 AND SOUTH THEN BEGIN LASTPOS := POS' POS := POS + 5' PRINT £YOU GO SOUTH. ?' LOOK' GOTO FINISHED' END'
+    IF CMD = 4 AND WEST THEN BEGIN LASTPOS := POS' POS := POS - 1' PRINT £YOU GO WEST. ?' LOOK' GOTO FINISHED' END'
+    IF CMD = 8 AND EAST THEN BEGIN LASTPOS := POS' POS := POS + 1' PRINT £YOU GO EAST. ?' LOOK' GOTO FINISHED' END'
+    IF CMD = 16 THEN BEGIN TAKE' GOTO FINISHED' END'
+
+  DONEMON:
+    IF CMD = 64 THEN BEGIN STATUS' GOTO FINISHED' END'
+    IF CMD = 128 THEN RESULT := 1'
+
+  FINISHED:
+    PRINT ££L??'
+    GAME := RESULT'
+  END GAME'
+
+  COMMENT MAIN GAME LOOP. FIRST INITIALISE THE GAME STATE'
+  RANDVAR := 125'
+  SKILL := 0'
+  STRENGTH := 50'
+  WORLD := 0'
+  LEVEL := 0'
+  LASTPOS := 0'
 
   BEGIN
-    INTEGER choice;
-    SWITCH ss := loop;
-    punch(3);
-    sameline; special(1); leadzero(#?);
-    carrying := 0; carryStrength := 0;
-    
-    COMMENT If the least significant keyboard digit is pressed, output a copy of this game to tape;
-    saveifpressed;
-    
-    PRINT #Teleporting... ?;
-    prepare;
-    PRINT #You materialise on planet ?; name(world); PRINT #.#L??;
-    status;
-    look;
-  loop:
-    monAttack;
-    IF strength LESS 1 THEN BEGIN
-      PRINT #Out of strength, you collapse and die.?;
+    INTEGER CHOICE'
+    SWITCH SS := LOOP'
+    PUNCH(3)'
+    SAMELINE' SPECIAL(1)' LEADZERO(£?)'
+    CARRYING := 0' CARRYSTRENGTH := 0'
+
+    PRINT £USE ADDRESS 2 TO CONTROL, OR SET BIT 512 AND FEED KEY INPUT ?'
+    PRINT £INTO TAPE A.£L??'
+    PRINT £TELEPORTING... £L??'
+    PREPARE'
+    PRINT £YOU MATERIALISE ON PLANET?' NAME(WORLD)' PRINT £.£L??'
+    STATUS'
+    LOOK'
+  LOOP:
+    MONATTACK'
+    IF STRENGTH LESS 1 THEN BEGIN
+      PRINT £OUT OF STRENGTH, YOU COLLAPSE AND DIE.?'
     END ELSE
-      IF game(command) = 0 THEN GOTO loop;
-    PRINT #GAME OVER#L2??;
-  END;  
-END program;
+      IF GAME(COMMAND) = 0 THEN GOTO LOOP'
+    PRINT £GAME OVER£L2??'
+  END'
+END PROGRAM'
